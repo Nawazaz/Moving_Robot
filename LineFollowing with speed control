@@ -1,0 +1,46 @@
+#include <avr/io.h>
+#include <util/delay.h> 
+int main(void){
+	// Set motor pins as outputs
+	DDRD |= 0b01100000;
+	while (1)
+	{
+		// Read sensor values
+		int left = (PINB & (1 << PB3)) ? 1 : 0;
+		int center = (PIND & (1 << PD7)) ? 1 : 0;
+		int right = (PINB & (1 << PB0)) ? 1 : 0;// Determine the line position
+		if (left && !center && right)
+		{
+			// On the line - go straight
+			PORTD = 0b01100000;
+			speedControl(255,255);
+		}
+		else if (left && !center && !right)
+		{
+			// Line on the left - turn left
+			PORTD = 0b00100000;
+			speedControl(120,30);
+		}
+		else if (!left && !center && right)
+		{
+			// Line on the right - turn right
+			PORTD = 0b01000000;
+			speedControl(30,120);
+		}
+		else
+		{
+			// Lost the line - stop
+			PORTD = 0b00000000;
+			speedControl(0,0);
+		}// Wait for a short time
+		_delay_ms(10);
+	}return 0;
+}
+
+void speedControl(int dutycycle_Grp1, int dutyCycle_Grp2){
+
+	TCCR0A |= (1 << COM0A1) | (1 << COM0B1) | (1 << WGM01) | (1 << WGM00); // set fast PWM mode with non-inverting output for OC0A and OC0B
+	TCCR0B |= (1 << CS02); // set prescaler to 256
+	OCR0A = dutycycle_Grp1; // set duty cycle for PD6 // AT for constant Speed M2 & M1
+	OCR0B = dutyCycle_Grp2; // set duty cycle for PD5 // AT for Constant Speed M3 & M4
+}
