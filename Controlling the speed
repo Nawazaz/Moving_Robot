@@ -1,0 +1,29 @@
+#include <avr/io.h>
+#include <util/delay.h>
+int main(void)
+{
+    //DDRD = 0b01100000; //Forward
+    //DDRD = 0b00010100;    //Backward
+    DDRD |= (1 << PD5) | (1 << PD6) ; // set PD5 and PD6 as output pins
+    TCCR0A |= (1 << COM0A1) | (1 << COM0B1) | (1 << WGM01) | (1 << WGM00); // set fast PWM mode with non-inverting output for OC0A and OC0B
+    TCCR0B |= (1 << CS02); // set prescaler to 256
+    // OCR0A = 255; // set duty cycle for PD6 // AT for constant Speed M2 & M1
+    // OCR0B = 120; // set duty cycle for PD5 // AT for Constant Speed M3 & M4     
+    while (1)
+    {
+        // change duty cycle to reduce the speed of the motor
+        for (int i = 255; i >= 0; i = i-30)
+        {
+            OCR0A = i; // set duty cycle for PD6
+            OCR0B = i; // Set duty cycle for PD5
+            _delay_ms(12); // wait for 5 ms
+        }
+        for (int j = 0; j <= 255; j=j+30)
+        {
+            OCR0A =j; // set duty cycle for PD6
+            OCR0B =j; // set duty cycle for PD5
+            _delay_ms(10); // wait for 5 ms
+        }
+    }    
+    return 0;
+}
