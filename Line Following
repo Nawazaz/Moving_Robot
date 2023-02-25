@@ -1,0 +1,43 @@
+#include <avr/io.h>
+#include <util/delay.h>
+
+int main(void)
+{
+	// Set motor pins as outputs
+	DDRD |= 0b01100000;
+
+	while (1)
+	{
+		// Read sensor values
+		int left = (PINB & (1 << PB3)) ? 1 : 0;
+		int center = (PIND & (1 << PD7)) ? 1 : 0;
+		int right = (PINB & (1 << PB0)) ? 1 : 0;
+
+		// Determine the line position
+		if (left && !center && right)
+		{
+			// On the line - go straight
+			PORTD = 0b01100000;
+		}
+		else if (left && !center && !right)
+		{
+			// Line on the left - turn left
+			PORTD = 0b00100000;
+		} 
+		else if (!left && !center && right)
+		{
+			// Line on the right - turn right
+			PORTD = 0b01000000;
+		}
+		else
+		{
+			// Lost the line - stop
+			PORTD = 0b00000000;
+		}
+
+		// Wait for a short time
+		_delay_ms(10);
+	}
+
+	return 0;
+}
