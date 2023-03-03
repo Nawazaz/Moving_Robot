@@ -1,0 +1,42 @@
+#define F_CPU 16000000UL // Set clock speed
+#include <avr/io.h>
+#include <util/delay.h>
+
+int main(void)
+{
+	DDRB |= (1 << PB4); // Set PB1 as output
+	DDRB &= ~(1 << PB5); // Set PB5 as input
+	PORTB &= ~(1 << PB4); // Set PB1 low initially
+	
+	while (1)
+	{
+		// Send trigger pulse
+		PORTB |= (1 << PB4); // Set PB5 high
+		_delay_us(10); // Wait 10us
+		PORTB &= ~(1 << PB4); // Set PB5 low
+		
+		// Measure echo pulse duration
+		uint16_t pulse_width = 0;
+		while ((PINB & (1 << PB5)) == 0); // Wait for echo pulse start
+		while ((PINB & (1 << PB5)) != 0) // Measure pulse width
+		{
+			pulse_width++;
+			_delay_us(1);
+		}
+		
+		// Calculate distance in cm
+		uint16_t distance = (pulse_width / 2)/29.1;
+		
+		// Turn on LED if object detected within 10 cm
+		if (distance < 10)
+		{
+			PORTB |= (1 << PB1); // Set PB1 high to turn on LED
+		}
+		else
+		{
+			PORTB &= ~(1 << PB1); // Set PB1 low to turn off LED
+		}
+		
+		_delay_ms(100); // Wait for 100ms before next measurement
+	}
+}
