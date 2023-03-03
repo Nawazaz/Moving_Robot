@@ -1,46 +1,57 @@
 #include <avr/io.h>
-#include <util/delay.h> 
+#include <util/delay.h>
+
 int main(void){
-	// Set motor pins as outputs
-	DDRD |= 0b01100000;
+	DDRD = 0b01110100; //Forward
+	DDRD |= (1 << PD5) | (1 << PD6) ; // set PD5 and PD6 as output pins
+	TCCR0A |= (1 << COM0A1) | (1 << COM0B1) | (1 << WGM01) | (1 << WGM00); // set fast PWM mode with non-inverting output for OC0A and OC0B
+	TCCR0B |= (1 << CS02); // set prescaler to 256
+
 	while (1)
 	{
 		// Read sensor values
 		int left = (PINB & (1 << PB3)) ? 1 : 0;
 		int center = (PIND & (1 << PD7)) ? 1 : 0;
-		int right = (PINB & (1 << PB0)) ? 1 : 0;// Determine the line position
-		if (left && !center && right)
+		int right = (PINB & (1 << PB0)) ? 1 : 0 ; // Determine the line position
+
+		if ((left) && (center) && (right))
 		{
 			// On the line - go straight
-			PORTD = 0b01100000;
-			speedControl(255,255);
+			PORTD = 0b01100000; // set right side forward
+			OCR0A = 50;
+			OCR0B = 50;
 		}
-		else if (left && !center && !right)
+		else if ((!left) && (center) && (right)) // Slight Right Turn
 		{
-			// Line on the left - turn left
-			PORTD = 0b00100000;
-			speedControl(120,30);
+			PORTD = 0b00110000; // set right side forward
+			OCR0A = 50;
+			OCR0B = 170;
 		}
-		else if (!left && !center && right)
+		else if ((!left) && (!center) && (right))    // Sharp Right Turn
 		{
-			// Line on the right - turn right
-			PORTD = 0b01000000;
-			speedControl(30,120);
+			PORTD = 0b00110000; // set right side forward
+			OCR0A = 40;
+			OCR0B = 220;
 		}
-		else
+		else if ((left) && (center) && (!right)) // Slight left Turn
+		{
+			PORTD = 0b01000100; // set right side forward
+			OCR0A = 170;
+			OCR0B = 50;
+		}
+		else if ((left) && (!center) && (!right))    // Sharp Right Turn
+		{
+			PORTD = 0b01000100; // set right side forward
+			OCR0A = 220;
+			OCR0B = 40;
+		}
+		else if((!left) && (!center) && (!right))
 		{
 			// Lost the line - stop
-			PORTD = 0b00000000;
-			speedControl(0,0);
-		}// Wait for a short time
-		_delay_ms(10);
-	}return 0;
-}
-
-void speedControl(int dutycycle_Grp1, int dutyCycle_Grp2){
-
-	TCCR0A |= (1 << COM0A1) | (1 << COM0B1) | (1 << WGM01) | (1 << WGM00); // set fast PWM mode with non-inverting output for OC0A and OC0B
-	TCCR0B |= (1 << CS02); // set prescaler to 256
-	OCR0A = dutycycle_Grp1; // set duty cycle for PD6 // AT for constant Speed M2 & M1
-	OCR0B = dutyCycle_Grp2; // set duty cycle for PD5 // AT for Constant Speed M3 & M4
+			PORTD = 0b00000000; // set both motors to stop
+			OCR0A = 0;
+			OCR0B = 0;
+		}
+	}
+	return 0;
 }
