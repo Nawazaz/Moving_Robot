@@ -1,0 +1,34 @@
+#define _DELAY_BACKWARDCOMPATIBLE
+#include <avr/io.h>
+#include <util/delay.h>
+
+int pos;
+int main(void){
+
+	DDRC |=(1 << PC3);
+
+	while(1){
+		for(int pos = 0; pos <= 180; pos+=1){
+			procedure(	pos);
+			_delay_ms(150);
+		}
+
+		for(int pos = 180; pos >= 0; pos -=1 ){
+			procedure(pos);
+			_delay_ms(150);
+		}
+	}
+}
+void procedure(int angleDeviation) {
+	long pulseWidth = (angleDeviation * 11) + 500;            // Calculation for value of pulse width
+	PORTC = 0b00001000;
+	for(int i = 0; i < pulseWidth; i++){
+		_delay_us(1);
+	}
+	//_delay_us(pulseWidth)
+	PORTC = 0b00000000;
+	for(int j = 0; j < (20-pulseWidth/1000); j++){
+		_delay_ms(1);
+	}
+	//_delay_ms((20-pulseWidth/1000));
+}
