@@ -1,0 +1,43 @@
+#define F_CPU 16000000UL
+#define BAUD 9600
+#include <avr/io.h>
+#include <util/setbaud.h>
+#include <util/delay.h>
+#include <avr/interrupt.h>
+char input_Command;
+int timer = 0;
+int main(void)
+{
+	TCCR1B = (1 << CS12);// Set Pre scalar as 256
+	UBRR0H = UBRRH_VALUE;
+	UBRR0L = UBRRL_VALUE;
+	UCSR0B |= (1<<RXEN0) | (1 << RXCIE0);// Enable transmission
+	UCSR0C = (1<<UCSZ00) | (1<<UCSZ01);// Set frame to 8 bits
+	DDRD = (1<<PORTB1);// Set pin 6 as output pin
+	sei();
+	while (1)
+	{
+		if (input_Command == 'F'){
+			PORTB = 0b00000010; // Turn on LED
+		}
+		else if(input_Command == 'B'){
+			PORTB = 0b00000000; // Turn off LED
+		}
+	}
+}
+
+ISR(USART_RX_vect) {
+	input_Command = UDR0;
+	//timer++;
+	//while(!(UCSR0A & (1<<UDRE0)));
+	//if (timer == 1){
+		//input_Command = UDR0;
+		//PORTB = 0b00000010;
+		//_delay_ms(1000);
+	//}
+	//else if (timer == 2){
+		//PORTB = 0b00000000;
+		//timer = 0;
+	//}
+}
+
