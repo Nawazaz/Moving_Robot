@@ -1,0 +1,99 @@
+#define F_CPU 16000000UL
+#define BAUD 9600
+#include <avr/io.h>
+#include <util/setbaud.h>
+#include <util/delay.h>
+#include <avr/interrupt.h>
+#include <stdbool.h>
+char input_Command;
+uint16_t flag;
+int main(void)
+{
+	TCCR1B = (1 << CS12);// Set Pre scalar as 256
+	UBRR0H = UBRRH_VALUE;
+	UBRR0L = UBRRL_VALUE;
+	UCSR0B |= (1<<RXEN0) | (1 << RXCIE0);// Enable transmission
+	UCSR0C = (1<<UCSZ00) | (1<<UCSZ01);// Set frame to 8 bits
+	DDRB = 0b00000010;
+	DDRD = 0b01110100;
+	
+	TCCR0A |= (1 << COM0A1) | (1 << COM0B1) | (1 << WGM01) | (1 << WGM00); // set fast PWM mode with non-inverting output for OC0A and OC0B
+	TCCR0B |= (1 << CS02); // set prescaler to 256
+	sei();
+	while (1)
+	{
+		switch (input_Command){
+			case 'F':
+					PORTB = 0b00000010; // Turn on LED
+					Line_follow();
+				break;
+			case 'B':
+				PORTB = 0b00000000; // Turn off LED
+				PORTD = 0b00000000;
+				OCR0A = 0;
+				OCR0B = 0;
+				break;	
+				
+		 
+		}
+	}
+}
+
+ISR(USART_RX_vect) {
+	input_Command = UDR0;
+}
+
+
+void Line_follow(){
+	
+	flag = 1;
+	while(flag){
+	
+	int left = (PINB & (1 << PB3)) ? 1 : 0;
+	int center = (PIND & (1 << PD7)) ? 1 : 0;
+	int right = (PINB & (1 << PB0)) ? 1 : 0 ; // Determine the line position
+
+	if ((left) && (center) && (right))
+	{
+		// On the line - go straight
+		PORTD = 0b01100000; // set right side forward
+		OCR0A = 50;
+		OCR0B = 50;
+	}
+	else if ((!left) && (center) && (right)) // Slight Right Turn
+	{
+		PORTD = 0b00110000; // set right side forward
+		OCR0A = 50;
+		OCR0B = 170;
+	}
+	else if ((!left) && (!center) && (right))    // Sharp Right Turn
+	{
+		PORTD = 0b00110000; // set right side forward
+		OCR0A = 40;
+		OCR0B = 220;
+	}
+	else if ((left) && (center) && (!right)) // Slight left Turn
+	{
+		PORTD = 0b01000100; // set right side forward
+		OCR0A = 170;
+		OCR0B = 50;
+	}
+	else if ((left) && (!center) && (!right))    // Sharp Right Turn
+	{
+		PORTD = 0b01000100; // set right side forward
+		OCR0A = 220;
+		OCR0B = 40;
+	}
+	else if((!left) && (!center) && (!right))
+	{
+		// Lost the line - stop
+		PORTD = 0b00000000;				// set both motors to stop
+		OCR0A = 0;
+		OCR0B = 0;
+	}
+	if(input_Command == 'B'){
+		flag = 0;
+		break;
+		}
+	}
+}
