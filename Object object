@@ -1,0 +1,85 @@
+#define F_CPU 16000000UL
+#define _DELAY_BACKWARDCOMPATIBLE
+#include <avr/io.h>
+#include <util/delay.h>
+uint16_t distance, A1, A2, length();
+int pos;
+int main(void){
+	DDRD = 0b01110100;
+	DDRB =0b000010010;
+	DDRC = (1 << PC3);
+	procedure(90);
+	_delay_ms(700);
+	//DDRD |= (1 << PD5) | (1 << PD6) ; // set PD5 and PD6 as output pins
+	TCCR0A |= (1 << COM0A1) | (1 << COM0B1) | (1 << WGM01) | (1 << WGM00); // set fast PWM mode with non-inverting output for OC0A and OC0B
+	TCCR0B |= (1 << CS02); // set prescaler to 256
+	while(1){
+		Avoid();
+	}
+}
+void Avoid(){
+	distance = length();
+	if ((distance < 40) && (distance != 0))
+	{
+		PORTD = 0b00000000;
+		_delay_ms(30);
+		procedure(160);
+		_delay_ms(20);
+		A1 = length();
+		_delay_ms(20);
+		procedure(40);
+		_delay_ms(20);
+		A2 = distance;
+		_delay_ms(20);
+		procedure(90);
+		if (A1 > A2)
+		{
+			//PORTB = 0b00000010;
+			PORTD = 0b01000100;
+			OCR0A = 50;
+			OCR0B = 100;
+			procedure(90);
+			_delay_ms(500);
+			}else{
+			PORTD = 0b00110000;
+			OCR0A = 100;
+			OCR0B = 50;
+			procedure(90);
+			_delay_ms(500);
+		}
+		}else{
+		PORTD = 0b01100000;
+		OCR0A = 100;
+		OCR0B = 100;
+	}
+}
+uint16_t length(){
+	// Send trigger pulse
+	PORTB |= (1 << PB4); // Set PB5 high
+	_delay_us(10); // Wait 10us
+	PORTB &= ~(1 << PB4); // Set PB5 low
+	// Measure echo pulse duration
+	uint16_t pulse_width = 0;
+	while ((PINB & (1 << PB5)) == 0); // Wait for echo pulse start
+	while ((PINB & (1 << PB5)) != 0) // Measure pulse width
+	{
+		pulse_width++;
+		_delay_us(1);
+	}
+	// Calculate distance in cm
+	uint16_t distance = (pulse_width / 2)/29.1;
+	return distance;
+	//_delay_ms(100); // Wait for 100ms before next measurement
+}
+void procedure(int angleDeviation) {
+	for (int i = 0;i < 90;i++){
+		long pulseWidth = (angleDeviation * 11) + 500; // Calculation for value of pulse width
+		PORTC = 0b00001000;
+		for(int i = 0; i < pulseWidth; i++){
+		}
+		//_delay_us(pulseWidth)
+		PORTC = 0b00000000;
+		for(int j = 0; j < (20-pulseWidth/1000); j++){
+		}
+	}//_delay_ms((20-pulseWidth/1000));
+}
