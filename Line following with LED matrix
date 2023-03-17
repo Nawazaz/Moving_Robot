@@ -1,0 +1,155 @@
+#define F_CPU 16000000UL
+#define BAUD 9600
+#include <avr/io.h>
+#include <util/setbaud.h>
+#include <util/delay.h>
+#include <avr/interrupt.h>
+#include <stdbool.h>
+char input_Command;
+uint16_t flag;
+//unsigned char smile[] = {0x00, 0x00, 0x1c, 0x02, 0x02, 0x02, 0x5c, 0x40, 0x40, 0x5c, 0x02, 0x02, 0x02, 0x1c, 0x00, 0x00};
+unsigned char start[] = {0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80,0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01};
+unsigned char front[] = {0x00,0x00,0x00,0x00,0x00,0x24,0x12,0x09,0x12,0x24,0x00,0x00,0x00,0x00,0x00,0x00};
+unsigned char back[] = {0x00,0x00,0x00,0x00,0x00,0x24,0x48,0x90,0x48,0x24,0x00,0x00,0x00,0x00,0x00,0x00};
+unsigned char left[] ={0x00, 0x00, 0x00, 0x00, 0x18, 0x24, 0x42, 0x18, 0x24, 0x42, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+unsigned char right[] ={0x00, 0x00, 0x00, 0x00, 0x42, 0x24, 0x18, 0x00, 0x42, 0x24, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00};
+unsigned char STOP[] = {0x2E,0x2A,0x3A,0x00,0x02,0x3E,0x02,0x00,0x3E,0x22,0x3E,0x00,0x3E,0x0A,0x0E,0x00};
+int main(void)
+{
+	TCCR1B = (1 << CS12);// Set Pre scalar as 256
+	UBRR0H = UBRRH_VALUE;
+	UBRR0L = UBRRL_VALUE;
+	UCSR0B |= (1<<RXEN0) | (1 << RXCIE0);// Enable transmission
+	UCSR0C = (1<<UCSZ00) | (1<<UCSZ01);// Set frame to 8 bits
+	DDRB = 0b00000010;
+	DDRD = 0b01110100;
+	DDRC |= 0b00110000;
+	TCCR0A |= (1 << COM0A1) | (1 << COM0B1) | (1 << WGM01) | (1 << WGM00); // set fast PWM mode with non-inverting output for OC0A and OC0B
+	TCCR0B |= (1 << CS02); // set prescaler to 256
+	sei();
+	while (1)
+	{
+		Line_follow();
+		//switch (input_Command){
+		//case 'F':
+		//PORTB = 0b00000010; // Turn on LED
+		//Line_follow();
+		//break;
+		//case 'B':
+		//PORTB = 0b00000000; // Turn off LED
+		//PORTD = 0b00000000;
+		//OCR0A = 0;
+		//OCR0B = 0;
+		//break;
+		//}
+	}
+}
+ISR(USART_RX_vect) {
+	input_Command = UDR0;
+}
+void Line_follow(){
+	flag = 1;
+	while(flag){
+		int left = (PINB & (1 << PB3)) ? 1 : 0;
+		int center = (PIND & (1 << PD7)) ? 1 : 0;
+		int right = (PINB & (1 << PB0)) ? 1 : 0 ; // Determine the line position if ((left) && (center) && (right))
+		int extra_IR = (PINC & (1 << PC0)) ? 1 : 0;
+		int extra_left = (PINB & (1<<PB2)) ? 1:0;
+		if((left) && (center) && (right) && (extra_IR)){
+			// On the line - go straight
+			PORTD = 0b01100000; // set right side forward
+			matrix_display(front);
+			OCR0A = 50;
+			OCR0B = 50;
+		}
+		else if ((!left) && (center) && (right) && (extra_IR)) // Slight Right Turn
+		{
+			PORTD = 0b00110000; // set right side forward
+			matrix_display(left);
+			OCR0A = 40;
+			OCR0B = 185;
+		}
+		else if ((!left) && (!center) && (right) & (extra_IR))// Sharp Right Turn
+		{
+			PORTD = 0b00110000; // set right side forward
+			matrix_display(left);
+			OCR0A = 50;
+			OCR0B = 220;
+		}
+		else if ((left) && (center) && (right) && (!extra_IR)) // Slight left Turn
+		{
+			PORTD = 0b01000100; // set right side forward
+			matrix_display(right);
+			OCR0A = 185;
+			OCR0B = 40;
+		}
+		else if ((left) && (center) && (!right) && (!extra_IR)) // Slight left Turn
+		{
+			PORTD = 0b01000100; // set right side forward
+			matrix_display(right);
+			OCR0A = 220;
+			OCR0B = 50;
+		}
+		else if ((left) && (!center) && (!right) && (!extra_IR))// Sharp Right Turn
+		{
+			PORTD = 0b01000100; // set right side forward
+			matrix_display(right);
+			OCR0A = 235;
+			OCR0B = 45;
+		}
+		else if((!left) && (!center) && (!right) && (!extra_IR))
+		{
+			// Lost the line - stop
+			PORTD = 0b00000000;// set both motors to stop
+			matrix_display(STOP);
+			OCR0A = 0;
+			OCR0B = 0;
+		}
+		if(input_Command == 'B'){
+			flag = 0;
+			break;
+		}
+	}
+}
+void IIC_start(){
+	PORTC = 0b00010000;
+	PORTC = 0b00110000;
+	_delay_us(30);
+	PORTC = 0b00100000;
+	_delay_us(30);
+	PORTC = 0b00000000;
+};
+void IIC_end(){
+	PORTC = 0b00000000;
+	_delay_us(30);
+	PORTC = 0b00100000;
+	_delay_us(30);
+	PORTC =0b00110000;
+	_delay_us(30);
+};
+void IIC_send(unsigned char send_data){
+	for (char mask = 0x01; mask != 0; mask <<= 1)
+	{
+		if (send_data & mask)
+		{
+			PORTC = 0b00010000;
+			}else {
+			PORTC = 0b00000000;
+		}
+		_delay_us(30);
+		PORTC =0b00100000;
+		_delay_us(30);
+		PORTC = 0b00000000;
+	}
+};
+void matrix_display(unsigned char matrix_smile[]){
+	IIC_start();
+	IIC_send(0xc0);
+	for (int i = 0; i < 16; i++) //the pattern data is 16 bytes
+	{
+		IIC_send(matrix_smile[i]); //Transmit the data of the pattern
+	}
+	IIC_end();//End pattern data transmission
+	IIC_start();
+	IIC_send(0x8A);//Display control, select 4/16 pulse width
+IIC_end();}
